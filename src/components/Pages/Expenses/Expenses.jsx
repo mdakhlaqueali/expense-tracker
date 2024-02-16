@@ -2,26 +2,33 @@ import React, { useState, useEffect } from "react";
 import ExpenseDetails from "./ExpenseDetails";
 import styles from "./Expenses.module.css";
 import axios from "axios";
-import { addExpense, deleteExpense, setExpenses } from "../../../store/expenseReducer";
+import { addExpense, deleteExpense, setExpenses, activatePremium } from "../../../store/expenseReducer";
+import { toggleTheme } from "../../../store/themeReducer";
 import { useDispatch,useSelector } from "react-redux";
 
 const Expenses = () => {
-  
-    const dispatch = useDispatch();
-    const expenses = useSelector((state) => state.expense.expenses);
-    const totalAmount = expenses.reduce((acc, expense) => acc + expense.amount, 0);
+
+  const dispatch = useDispatch();
+  const isDarkTheme = useSelector((state) => state.theme.isDarkTheme);
+  const expenses = useSelector((state) => state.expense.expenses);
+  const isPremium = useSelector((state)=> state.expense.isPremium);
+  const totalAmount = expenses.reduce((acc, expense) => acc + expense.amount, 0);
+  const premiumAmount = totalAmount>10000;
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Grocery");
   const [editingExpense, setEditingExpense] = useState(null);
 
+  const handleThemeToggle = () => {
+    dispatch(toggleTheme());
+  }
+
   useEffect(() => {
     fetchExpenses();
   }, []);
   const addExpenesHandler = async (event) => {
     event.preventDefault();
-
     if (editingExpense) {
       // Handle editing expense
       const editedExpense = {
@@ -30,7 +37,6 @@ const Expenses = () => {
         category,
       };
       const url = `https://expense-tracker-20439-default-rtdb.firebaseio.com/expenses/${editingExpense.id}.json`;
-
       try {
         await axios.put(url, editedExpense);
         fetchExpenses();
@@ -45,10 +51,8 @@ const Expenses = () => {
         category,
       };
       dispatch(addExpense(newExpense));
-
       const url =
         "https://expense-tracker-20439-default-rtdb.firebaseio.com/expenses.json";
-
       try {
         await axios.post(url, newExpense);
       } catch (error) {
@@ -59,32 +63,27 @@ const Expenses = () => {
     setCategory("Grocery");
     setDescription("");
   };
-
   const editExpenseHandler = (expense) => {
     setEditingExpense(expense);
     setAmount(expense.amount.toString());
     setDescription(expense.description);
     setCategory(expense.category);
   };
-
   const cancelEditHandler = () => {
     setEditingExpense(null);
     setAmount("");
     setDescription("");
     setCategory("Grocery");
   };
-
   const deleteExpenseHandler = async (expenseId) => {
     dispatch(deleteExpense(expenseId));
     const url = `https://expense-tracker-20439-default-rtdb.firebaseio.com/expenses/${expenseId}.json`;
-
     try {
       await axios.delete(url);
     } catch (error) {
       console.log(error);
     }
   };
-
   const fetchExpenses = async () => {
     const url =
       "https://expense-tracker-20439-default-rtdb.firebaseio.com/expenses.json";
@@ -93,14 +92,14 @@ const Expenses = () => {
       if (response.status === 200) {
         const expenseData = response.data;
         if(expenseData){
-            const expenseArray = Object.keys(expenseData).map((key) => ({
-              id: key,
-              ...expenseData[key],
-            }));
-            console.log("expenseArray", expenseArray);
-            console.log("response-data", response.data);
-            dispatch(setExpenses(expenseArray));
-          }
+          const expenseArray = Object.keys(expenseData).map((key) => ({
+            id: key,
+            ...expenseData[key],
+          }));
+          console.log("expenseArray", expenseArray);
+          console.log("response-data", response.data);
+          dispatch(setExpenses(expenseArray));
+        }
       } else {
         console.log("failed to fetch");
       }
@@ -108,8 +107,30 @@ const Expenses = () => {
       console.log(error);
     }
   };
+
+  const activatePremiumHandler = () => {
+    dispatch(activatePremium());
+
+  };
+
+  const downloadCSV = () => {
+    const csvContent = "data:text/csv;charset=utf-8," +
+      "Amount,Description,Category\n" +
+      expenses.map(expense => `${expense.amount},"${expense.description}",${expense.category}`).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "expenses.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className={styles["expenses-container"]}>
+    <div className={`${styles['expenses-container']} ${isDarkTheme ? styles['dark-theme'] : styles['light-theme']}`}>
+      {isPremium && <button onClick={handleThemeToggle}>Toggle Theme</button>}
+      <button onClick={downloadCSV}>Download Expense</button>
       <form onSubmit={addExpenesHandler}>
         <input
           type="number"
@@ -144,7 +165,7 @@ const Expenses = () => {
         onEditExpense={editExpenseHandler}
       />
       <div>Total Amount: {totalAmount}</div>
-      {totalAmount > 10000 && <button style={{backgroundColor:"gold"}}>Activate Premium</button>}
+      {premiumAmount && <button onClick={activatePremiumHandler} style={{backgroundColor:"gold"}}>{isPremium ? 'Premium Activated' : 'Activate Premium'}</button>}
     </div>
   );
 };
