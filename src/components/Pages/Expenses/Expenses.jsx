@@ -2,8 +2,15 @@ import React, { useState, useEffect } from "react";
 import ExpenseDetails from "./ExpenseDetails";
 import styles from "./Expenses.module.css";
 import axios from "axios";
+import { addExpense, deleteExpense, setExpenses } from "../../../store/expenseReducer";
+import { useDispatch,useSelector } from "react-redux";
+
 const Expenses = () => {
-  const [expense, setExpense] = useState([]);
+  
+    const dispatch = useDispatch();
+    const expenses = useSelector((state) => state.expense.expenses);
+    const totalAmount = expenses.reduce((acc, expense) => acc + expense.amount, 0);
+
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Grocery");
@@ -26,8 +33,8 @@ const Expenses = () => {
 
       try {
         await axios.put(url, editedExpense);
-        setEditingExpense(null);
         fetchExpenses();
+        setEditingExpense(null);
       } catch (error) {
         console.log(error);
       }
@@ -37,13 +44,13 @@ const Expenses = () => {
         description,
         category,
       };
+      dispatch(addExpense(newExpense));
 
       const url =
         "https://expense-tracker-20439-default-rtdb.firebaseio.com/expenses.json";
 
       try {
         await axios.post(url, newExpense);
-        fetchExpenses();
       } catch (error) {
         console.log(error);
       }
@@ -68,11 +75,11 @@ const Expenses = () => {
   };
 
   const deleteExpenseHandler = async (expenseId) => {
+    dispatch(deleteExpense(expenseId));
     const url = `https://expense-tracker-20439-default-rtdb.firebaseio.com/expenses/${expenseId}.json`;
 
     try {
       await axios.delete(url);
-      fetchExpenses();
     } catch (error) {
       console.log(error);
     }
@@ -85,13 +92,15 @@ const Expenses = () => {
       const response = await axios.get(url);
       if (response.status === 200) {
         const expenseData = response.data;
-        const expenseArray = Object.keys(expenseData).map((key) => ({
-          id: key,
-          ...expenseData[key],
-        }));
-        console.log("expenseArray", expenseArray);
-        console.log("response-data", response.data);
-        setExpense(expenseArray);
+        if(expenseData){
+            const expenseArray = Object.keys(expenseData).map((key) => ({
+              id: key,
+              ...expenseData[key],
+            }));
+            console.log("expenseArray", expenseArray);
+            console.log("response-data", response.data);
+            dispatch(setExpenses(expenseArray));
+          }
       } else {
         console.log("failed to fetch");
       }
@@ -130,10 +139,12 @@ const Expenses = () => {
         )}
       </form>
       <ExpenseDetails
-        expenses={expense}
+        expenses={expenses}
         onDeleteExpense={deleteExpenseHandler}
         onEditExpense={editExpenseHandler}
       />
+      <div>Total Amount: {totalAmount}</div>
+      {totalAmount > 10000 && <button style={{backgroundColor:"gold"}}>Activate Premium</button>}
     </div>
   );
 };

@@ -1,19 +1,19 @@
 import axios from "axios";
-import { useEffect, useRef, useState, useContext } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AuthContext from "../../store/auth-context";
+import { useSelector } from "react-redux";
 
 const Profile = () => {
   const displayNameRef = useRef();
   const photoUrlRef = useRef();
   const navigate = useNavigate();
   const [userData, setUserData] = useState({});
-  const authCtx = useContext(AuthContext);
+  const token = useSelector((state)=>state.auth.token);
 
   const updateProfileHandler = async (event) => {
     event.preventDefault();
 
-    const idToken = localStorage.getItem("token");
+    const idToken = token;
     const displayName = displayNameRef.current.value;
     const photoUrl = photoUrlRef.current.value;
 
@@ -45,7 +45,7 @@ const Profile = () => {
     }
   };
   const fetchUserData = async () => {
-    const idToken = localStorage.getItem("token");
+    const idToken = token;
 
     if (idToken) {
       const url = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=AIzaSyBiEoVyC6pTrqMH33q1rNiN1-Ck8F40X8M`;
@@ -72,13 +72,13 @@ const Profile = () => {
   }, []);
 
   const verifyEmailHandler = async () => {
+    const mytoken = token;
     const url =
       "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=AIzaSyBiEoVyC6pTrqMH33q1rNiN1-Ck8F40X8M";
-    const token = authCtx.token;
     try {
       const response = await axios.post(url, {
         requestType: "VERIFY_EMAIL",
-        idToken: token,
+        idToken: mytoken,
       });
 
       if (response.status === 200) {
